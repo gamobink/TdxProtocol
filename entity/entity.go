@@ -14,6 +14,14 @@ const (
 	CMD_HEART_BEAT = 0x0523
 )
 
+const (
+	BLOCK_SH_A = 0
+	BLOCK_SH_B = 1
+	BLOCK_SZ_A = 2
+	BLOCK_SZ_B = 3
+	BLOCK_INDEX = 11
+)
+
 type Header struct {
 	Zip 	byte
 	SeqId 	uint32
@@ -32,6 +40,15 @@ type InfoExReq struct {
 	Header Header
 	Count uint16
 	Stocks []*StockDef
+}
+
+type StockListReq struct {
+	Header Header
+	Block uint16
+	Unknown1 uint16
+	Offset uint16
+	Count uint16
+	Unknown2 uint16
 }
 
 func MarketLocationFromCode(stockCode string) byte {
@@ -69,7 +86,7 @@ func (this *InfoExReq) Write(writer *bytes.Buffer) {
 }
 
 func (this *InfoExReq) Size() int {
-	return 2 + 7 * len(this.Stocks)
+	return 4 + 7 * len(this.Stocks)
 }
 
 func (this *InfoExReq) AddCode(stockCode string) {
@@ -96,5 +113,47 @@ func NewInfoExReq(seqId uint32) *InfoExReq {
 		0,
 		[]*StockDef {},
 	}
+	return req
+}
+
+func writeUInt16(writer *bytes.Buffer, v uint16) {
+	var int16buf2 [2]byte
+	binary.LittleEndian.PutUint16(int16buf2[:], v)
+	writer.Write(int16buf2[:])
+}
+
+func (this *StockListReq) Write(writer *bytes.Buffer) {
+	this.Header.Write(writer)
+	writeUInt16(writer, this.Block)
+	writeUInt16(writer, this.Unknown1)
+	writeUInt16(writer, this.Offset)
+	writeUInt16(writer, this.Count)
+	writeUInt16(writer, this.Unknown2)
+}
+
+func (this *StockListReq) Size() int {
+	return 12
+}
+
+func NewStockListReq(seqId uint32, block uint16, offset uint16, count uint16) *StockListReq {
+	req := &StockListReq{
+		Header{
+			Zip: 0xc,
+			SeqId: seqId,
+			PacketType: 0x1,
+			Len: 0,
+			Len1: 0,
+			Cmd: CMD_STOCK_LIST,
+		},
+		block,
+		0,
+		offset,
+		count,
+		0,
+	}
+
+	req.Header.Len = uint16(req.Size())
+	req.Header.Len1 = req.Header.Len
+
 	return req
 }

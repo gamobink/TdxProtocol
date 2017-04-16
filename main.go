@@ -21,7 +21,7 @@ func chk(err error) {
 	panic(err)
 }
 
-func main() {
+func BuildInfoExBuffer() *bytes.Buffer {
 	req := entity.NewInfoExReq(1)
 	req.AddCode("600000")
 	req.AddCode("600001")
@@ -29,6 +29,21 @@ func main() {
 	buf := new(bytes.Buffer)
 	req.Write(buf)
 	fmt.Println(buf.Bytes())
+	return buf
+}
+
+func BuildStockListBuffer() *bytes.Buffer {
+	req := entity.NewStockListReq(1, 0, 0, 1)
+	fmt.Println(req)
+	buf := new(bytes.Buffer)
+	req.Write(buf)
+	fmt.Println(buf.Bytes())
+	return buf
+}
+
+func main() {
+	buf := BuildStockListBuffer()
+
 
 	conn, err := net.Dial("tcp", HOST)
 	chk(err)
