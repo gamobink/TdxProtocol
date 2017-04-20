@@ -7,8 +7,6 @@ import (
 	"compress/zlib"
 	"bytes"
 	"io"
-	"fmt"
-	"encoding/hex"
 )
 
 const (
@@ -37,6 +35,44 @@ type InfoExItem struct {
 	RationedShares float32
 }
 
+type Bid struct {
+	StockCode string
+	Close uint32
+	YesterdayClose uint32
+	Open uint32
+	High uint32
+	Low uint32
+
+	Vol uint32
+	InnerVol uint32
+	OuterVol uint32
+
+	BuyPrice1 uint32
+	SellPrice1 uint32
+	BuyVol1 uint32
+	SellVol1 uint32
+
+	BuyPrice2 uint32
+	SellPrice2 uint32
+	BuyVol2 uint32
+	SellVol2 uint32
+
+	BuyPrice3 uint32
+	SellPrice3 uint32
+	BuyVol3 uint32
+	SellVol3 uint32
+
+	BuyPrice4 uint32
+	SellPrice4 uint32
+	BuyVol4 uint32
+	SellVol4 uint32
+
+	BuyPrice5 uint32
+	SellPrice5 uint32
+	BuyVol5 uint32
+	SellVol5 uint32
+}
+
 type parser struct {
 	RawBuffer []byte
 	Current int
@@ -61,6 +97,7 @@ type InfoExParser struct {
 type StockListParser struct {
 	parser
 	Req *StockListReq
+	Total uint16
 }
 
 func (this *parser) getCmd() uint16 {
@@ -202,18 +239,18 @@ func (this *InstantTransParser) Parse() []*Transaction {
 	count := this.getUint16()
 
 	first := true
-	var priceBase uint32
+	var priceBase int
 
 	for ; count > 0; count-- {
 		trans := &Transaction{}
 		trans.Minute = this.getUint16()
 		if first {
-			priceBase = uint32(this.parseData2())
-			trans.Price = priceBase
+			priceBase = this.parseData2()
+			trans.Price = uint32(priceBase)
 			first = false
 		} else {
-			priceBase = uint32(this.parseData()) + priceBase
-			trans.Price = priceBase
+			priceBase = this.parseData() + priceBase
+			trans.Price = uint32(priceBase)
 		}
 		trans.Volume = uint32(this.parseData2())
 		trans.Count = uint32(this.parseData2())
@@ -250,18 +287,18 @@ func (this *HisTransParser) Parse() []*Transaction {
 	this.skipByte(4)
 
 	first := true
-	var priceBase uint32
+	var priceBase int
 
 	for ; count > 0; count-- {
 		trans := &Transaction{Date: this.Req.Date}
 		trans.Minute = this.getUint16()
 		if first {
-			priceBase = uint32(this.parseData2())
-			trans.Price = priceBase
+			priceBase = this.parseData2()
+			trans.Price = uint32(priceBase)
 			first = false
 		} else {
-			priceBase = uint32(this.parseData()) + priceBase
-			trans.Price = priceBase
+			priceBase = this.parseData() + priceBase
+			trans.Price = uint32(priceBase)
 		}
 		trans.Volume = uint32(this.parseData2())
 		trans.BS = this.getByte()
@@ -333,6 +370,117 @@ func (this *InfoExParser) Parse() map[string][]*InfoExItem {
 
 func NewInfoExParser(req *InfoExReq, data []byte) *InfoExParser {
 	return &InfoExParser{
+		parser: parser{
+			RawBuffer: data,
+		},
+		Req: req,
+	}
+}
+
+func (this *StockListParser) isStockValid(s []byte) bool {
+	if len(s) < STOCK_CODE_LEN {
+		return false
+	}
+
+	for i := 0; i < STOCK_CODE_LEN; i++ {
+		if s[i] < 0x30 || s[i] > 0x39 {
+			return false
+		}
+	}
+	return true
+}
+
+func (this *StockListParser) searchStockCode() int {
+	for i := this.Current; i < len(this.Data); i++ {
+		if this.isStockValid(this.Data[i:]) {
+			return i - this.Current - 1
+		}
+	}
+	panic(errors.New("no stock code found"))
+}
+
+func (this *StockListParser) Parse() map[string]*Bid {
+	if this.getSeqId() != this.Req.Header.SeqId {
+		panic(errors.New("bad seq id"))
+	}
+
+	if this.getCmd() != this.Req.Header.Cmd {
+		panic(errors.New("bad cmd"))
+	}
+
+	this.uncompressIf()
+
+	result := map[string]*Bid{}
+
+	totalCount := this.getUint16()
+	count := this.getUint16()
+
+
+
+	for ; count > 0; count-- {
+		this.skipByte(1)	// Location
+		stockCode := string(this.Data[this.Current:this.Current + STOCK_CODE_LEN])
+		this.skipByte(STOCK_CODE_LEN)
+		this.skipByte(2) // 未知
+
+		bid := &Bid{StockCode: stockCode}
+
+		bid.Close = uint32(this.parseData2())
+		bid.YesterdayClose = uint32(this.parseData() + int(bid.Close))
+		bid.Open = uint32(this.parseData() + int(bid.Close))
+		bid.High = uint32(this.parseData() + int(bid.Close))
+		bid.Low = uint32(this.parseData() + int(bid.Close))
+
+		this.parseData()
+		this.parseData()
+
+		bid.Vol = uint32(this.parseData2())
+		this.parseData2()
+		this.skipByte(4)
+		bid.InnerVol = uint32(this.parseData2())
+		bid.OuterVol = uint32(this.parseData2())
+
+		this.parseData()
+		this.skipByte(1)
+
+		bid.BuyPrice1 = uint32(this.parseData() + int(bid.Close))
+		bid.SellPrice1 = uint32(this.parseData() + int(bid.Close))
+		bid.BuyVol1 = uint32(this.parseData2())
+		bid.SellVol1 = uint32(this.parseData2())
+
+		bid.BuyPrice2 = uint32(this.parseData() + int(bid.Close))
+		bid.SellPrice2 = uint32(this.parseData() + int(bid.Close))
+		bid.BuyVol2 = uint32(this.parseData2())
+		bid.SellVol2 = uint32(this.parseData2())
+
+		bid.BuyPrice3 = uint32(this.parseData() + int(bid.Close))
+		bid.SellPrice3 = uint32(this.parseData() + int(bid.Close))
+		bid.BuyVol3 = uint32(this.parseData2())
+		bid.SellVol3 = uint32(this.parseData2())
+
+		bid.BuyPrice4 = uint32(this.parseData() + int(bid.Close))
+		bid.SellPrice4 = uint32(this.parseData() + int(bid.Close))
+		bid.BuyVol4 = uint32(this.parseData2())
+		bid.SellVol4 = uint32(this.parseData2())
+
+		bid.BuyPrice5 = uint32(this.parseData() + int(bid.Close))
+		bid.SellPrice5 = uint32(this.parseData() + int(bid.Close))
+		bid.BuyVol5 = uint32(this.parseData2())
+		bid.SellVol5 = uint32(this.parseData2())
+
+		result[stockCode] = bid
+
+		if count > 1 {
+			n := this.searchStockCode()
+			this.skipByte(n)
+		}
+	}
+	this.Total = totalCount
+	return result
+}
+
+func NewStockListParser(req *StockListReq, data []byte) *StockListParser {
+	return &StockListParser{
 		parser: parser{
 			RawBuffer: data,
 		},

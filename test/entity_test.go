@@ -22,18 +22,16 @@ func chk(err error) {
 	panic(err)
 }
 
-func BuildStockListBuffer() *bytes.Buffer {
-	req := entity.NewStockListReq(1, 0, 0, 1)
-	fmt.Println(req)
+func BuildStockListBuffer() (*bytes.Buffer, *entity.StockListReq) {
+	req := entity.NewStockListReq(1, 0, 0, 2)
 	buf := new(bytes.Buffer)
 	req.Write(buf)
-	fmt.Println(buf.Bytes())
-	return buf
+	return buf, req
 }
 
-func _TestStockListReq(t *testing.T) {
+func TestStockListReq(t *testing.T) {
 	fmt.Println("TestStockListReq...")
-	buf := BuildStockListBuffer()
+	buf, req := BuildStockListBuffer()
 
 	conn, err := net.Dial("tcp", HOST)
 	chk(err)
@@ -44,7 +42,15 @@ func _TestStockListReq(t *testing.T) {
 	buffer := make([]byte, 1024)
 	n, err := conn.Read(buffer)
 	chk(err)
-	fmt.Println(hex.EncodeToString(buffer[:n]))
+
+	parser := entity.NewStockListParser(req, buffer[:n])
+	result := parser.Parse()
+	fmt.Println(hex.EncodeToString(parser.Data))
+
+	fmt.Println("total:", parser.Total)
+	for _, b := range result {
+		fmt.Println(b)
+	}
 }
 
 func BuildInfoExBuffer() (*bytes.Buffer, *entity.InfoExReq) {
@@ -57,7 +63,7 @@ func BuildInfoExBuffer() (*bytes.Buffer, *entity.InfoExReq) {
 	return buf, req
 }
 
-func TestInfoExReq(t *testing.T) {
+func _TestInfoExReq(t *testing.T) {
 	fmt.Println("TestInfoExReq...")
 	buf, req := BuildInfoExBuffer()
 
@@ -141,4 +147,7 @@ func _TestHisTransReq(t *testing.T) {
 	for _, t := range result {
 		fmt.Println(t)
 	}
+}
+
+func Test(t *testing.T) {
 }
