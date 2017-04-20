@@ -184,15 +184,15 @@ func (this *InstantTransParser) Parse() []*Transaction {
 		trans := &Transaction{}
 		trans.Minute = this.getUint16()
 		if first {
-			priceBase = uint32(this.parseData())
+			priceBase = uint32(this.parseData2())
 			trans.Price = priceBase
 			first = false
 		} else {
 			priceBase = uint32(this.parseData()) + priceBase
 			trans.Price = priceBase
 		}
-		trans.Volume = uint32(this.parseData())
-		trans.Count = uint32(this.parseData())
+		trans.Volume = uint32(this.parseData2())
+		trans.Count = uint32(this.parseData2())
 		trans.BS = this.getByte()
 		this.skipByte(1)
 		result = append(result, trans)
@@ -224,16 +224,16 @@ func (this *HisTransParser) Parse() []*Transaction {
 		trans := &Transaction{Date: this.Req.Date}
 		trans.Minute = this.getUint16()
 		if first {
-			priceBase = uint32(this.parseData())
+			priceBase = uint32(this.parseData2())
 			trans.Price = priceBase
 			first = false
 		} else {
 			priceBase = uint32(this.parseData()) + priceBase
 			trans.Price = priceBase
 		}
-		trans.Volume = uint32(this.parseData())
+		trans.Volume = uint32(this.parseData2())
 		trans.BS = this.getByte()
-		trans.Count = uint32(this.parseData())
+		trans.Count = uint32(this.parseData2())
 		result = append(result, trans)
 	}
 	return result
