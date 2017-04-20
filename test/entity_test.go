@@ -47,20 +47,19 @@ func _TestStockListReq(t *testing.T) {
 	fmt.Println(hex.EncodeToString(buffer[:n]))
 }
 
-func BuildInfoExBuffer() *bytes.Buffer {
+func BuildInfoExBuffer() (*bytes.Buffer, *entity.InfoExReq) {
 	req := entity.NewInfoExReq(1)
-	req.AddCode("600000")
-	req.AddCode("600001")
+	req.AddCode("000099")
 	fmt.Println(req)
 	buf := new(bytes.Buffer)
 	req.Write(buf)
 	fmt.Println(buf.Bytes())
-	return buf
+	return buf, req
 }
 
-func _TestInfoExReq(t *testing.T) {
+func TestInfoExReq(t *testing.T) {
 	fmt.Println("TestInfoExReq...")
-	buf := BuildInfoExBuffer()
+	buf, req := BuildInfoExBuffer()
 
 	conn, err := net.Dial("tcp", HOST)
 	chk(err)
@@ -68,10 +67,20 @@ func _TestInfoExReq(t *testing.T) {
 	_, err = conn.Write(buf.Bytes())
 	chk(err)
 
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, 1024 * 1024)
 	n, err := conn.Read(buffer)
 	chk(err)
-	fmt.Println(hex.EncodeToString(buffer[:n]))
+
+	parser := entity.NewInfoExParser(req, buffer[:n])
+	result := parser.Parse()
+	fmt.Println(hex.EncodeToString(parser.Data))
+
+	for k, l := range result {
+		fmt.Println(k)
+		for _, t := range l {
+			fmt.Println(t)
+		}
+	}
 }
 
 func BuildInstantTransBuffer() (*bytes.Buffer, *entity.InstantTransReq){
@@ -111,7 +120,7 @@ func BuildHisTransBuffer() (*bytes.Buffer, *entity.HisTransReq) {
 	return buf, req
 }
 
-func TestHisTransReq(t *testing.T) {
+func _TestHisTransReq(t *testing.T) {
 	fmt.Println("TestHisTransReq...")
 	buf, req := BuildHisTransBuffer()
 

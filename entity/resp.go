@@ -7,11 +7,17 @@ import (
 	"compress/zlib"
 	"bytes"
 	"io"
+	"fmt"
+	"encoding/hex"
 )
 
 const (
 	BS_BUY = 0
 	BS_SELL = 1
+)
+
+const (
+	STOCK_CODE_LEN = 6
 )
 
 type Transaction struct {
@@ -45,6 +51,16 @@ type InstantTransParser struct {
 type HisTransParser struct {
 	parser
 	Req *HisTransReq
+}
+
+type InfoExParser struct {
+	parser
+	Req *InfoExReq
+}
+
+type StockListParser struct {
+	parser
+	Req *StockListReq
 }
 
 func (this *parser) getCmd() uint16 {
@@ -171,6 +187,14 @@ func (this *parser) uncompressIf() {
 }
 
 func (this *InstantTransParser) Parse() []*Transaction {
+	if this.getSeqId() != this.Req.Header.SeqId {
+		panic(errors.New("bad seq id"))
+	}
+
+	if this.getCmd() != this.Req.Header.Cmd {
+		panic(errors.New("bad cmd"))
+	}
+
 	this.uncompressIf()
 
 	var result []*Transaction
@@ -210,6 +234,14 @@ func NewInstantTransParser(req *InstantTransReq, data []byte) *InstantTransParse
 }
 
 func (this *HisTransParser) Parse() []*Transaction {
+	if this.getSeqId() != this.Req.Header.SeqId {
+		panic(errors.New("bad seq id"))
+	}
+
+	if this.getCmd() != this.Req.Header.Cmd {
+		panic(errors.New("bad cmd"))
+	}
+
 	this.uncompressIf()
 
 	var result []*Transaction
@@ -241,6 +273,66 @@ func (this *HisTransParser) Parse() []*Transaction {
 
 func NewHisTransParser(req *HisTransReq, data []byte) *HisTransParser {
 	return &HisTransParser{
+		parser: parser{
+			RawBuffer: data,
+		},
+		Req: req,
+	}
+}
+
+func (this *InfoExParser) Parse() map[string][]*InfoExItem {
+	if this.getSeqId() != this.Req.Header.SeqId {
+		panic(errors.New("bad seq id"))
+	}
+
+	if this.getCmd() != this.Req.Header.Cmd {
+		panic(errors.New("bad cmd"))
+	}
+
+	this.uncompressIf()
+
+	result := map[string][]*InfoExItem{}
+
+	count := this.getUint16()
+
+	for ; count > 0; count-- {
+		this.skipByte(1)
+		stockCode := string(this.Data[this.Current:this.Current + STOCK_CODE_LEN])
+		this.skipByte(STOCK_CODE_LEN)
+		recordCount := this.getUint16()
+
+		result[stockCode] = []*InfoExItem{}
+
+		for ; recordCount > 0; recordCount-- {
+			this.skipByte(1)
+			stockCode1 := string(this.Data[this.Current:this.Current + STOCK_CODE_LEN])
+			this.skipByte(STOCK_CODE_LEN + 1)
+			if stockCode != stockCode1 {
+				panic(errors.New("bad stock code"))
+			}
+			date := this.getUint32()
+			tp := this.getByte()
+			if tp != 1 {
+				//fmt.Println("tp:", tp, "date:", date, "data:", hex.EncodeToString(this.Data[this.Current:this.Current+16]))
+				this.skipByte(16)
+				continue
+			}
+
+			obj := &InfoExItem{}
+			obj.Date = date
+			obj.Bonus = this.getFloat32() / 10
+			obj.RationedSharePrice = this.getFloat32()
+			obj.DeliveredShares = this.getFloat32() / 10
+			obj.RationedShares = this.getFloat32() / 10
+
+			result[stockCode] = append(result[stockCode], obj)
+		}
+	}
+	return result
+}
+
+func NewInfoExParser(req *InfoExReq, data []byte) *InfoExParser {
+	return &InfoExParser{
 		parser: parser{
 			RawBuffer: data,
 		},
