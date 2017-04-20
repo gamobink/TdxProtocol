@@ -224,6 +224,10 @@ func (this *parser) uncompressIf() {
 }
 
 func (this *InstantTransParser) Parse() []*Transaction {
+	if int(this.getLen()) + this.getHeaderLen() > len(this.RawBuffer) {
+		panic(errors.New("incomplete data"))
+	}
+
 	if this.getSeqId() != this.Req.Header.SeqId {
 		panic(errors.New("bad seq id"))
 	}
@@ -271,6 +275,10 @@ func NewInstantTransParser(req *InstantTransReq, data []byte) *InstantTransParse
 }
 
 func (this *HisTransParser) Parse() []*Transaction {
+	if int(this.getLen()) + this.getHeaderLen() > len(this.RawBuffer) {
+		panic(errors.New("incomplete data"))
+	}
+
 	if this.getSeqId() != this.Req.Header.SeqId {
 		panic(errors.New("bad seq id"))
 	}
@@ -318,6 +326,10 @@ func NewHisTransParser(req *HisTransReq, data []byte) *HisTransParser {
 }
 
 func (this *InfoExParser) Parse() map[string][]*InfoExItem {
+	if int(this.getLen()) + this.getHeaderLen() > len(this.RawBuffer) {
+		panic(errors.New("incomplete data"))
+	}
+
 	if this.getSeqId() != this.Req.Header.SeqId {
 		panic(errors.New("bad seq id"))
 	}
@@ -400,6 +412,10 @@ func (this *StockListParser) searchStockCode() int {
 }
 
 func (this *StockListParser) Parse() map[string]*Bid {
+	if int(this.getLen()) + this.getHeaderLen() > len(this.RawBuffer) {
+		panic(errors.New("incomplete data"))
+	}
+
 	if this.getSeqId() != this.Req.Header.SeqId {
 		panic(errors.New("bad seq id"))
 	}

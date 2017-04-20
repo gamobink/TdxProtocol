@@ -23,7 +23,7 @@ func chk(err error) {
 }
 
 func BuildStockListBuffer() (*bytes.Buffer, *entity.StockListReq) {
-	req := entity.NewStockListReq(1, 0, 0, 2)
+	req := entity.NewStockListReq(1, 0, 0, 30)
 	buf := new(bytes.Buffer)
 	req.Write(buf)
 	return buf, req
@@ -39,7 +39,7 @@ func TestStockListReq(t *testing.T) {
 	_, err = conn.Write(buf.Bytes())
 	chk(err)
 
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, 1024 * 1024)
 	n, err := conn.Read(buffer)
 	chk(err)
 
