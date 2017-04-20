@@ -81,7 +81,7 @@ func BuildInstantTransBuffer() (*bytes.Buffer, *entity.InstantTransReq){
 	return buf, req
 }
 
-func TestInstantTransReq(t *testing.T) {
+func _TestInstantTransReq(t *testing.T) {
 	fmt.Println("TestInstantTransReq...")
 	buf, req := BuildInstantTransBuffer()
 
@@ -104,16 +104,16 @@ func TestInstantTransReq(t *testing.T) {
 	}
 }
 
-func BuildHisTransBuffer() *bytes.Buffer {
-	req := entity.NewHisTransReq(1, 20170414, "600000", 0, 100)
+func BuildHisTransBuffer() (*bytes.Buffer, *entity.HisTransReq) {
+	req := entity.NewHisTransReq(1, 20170414, "600000", 3800, 200)
 	buf := new(bytes.Buffer)
 	req.Write(buf)
-	return buf
+	return buf, req
 }
 
-func _TestHisTransReq(t *testing.T) {
+func TestHisTransReq(t *testing.T) {
 	fmt.Println("TestHisTransReq...")
-	buf := BuildHisTransBuffer()
+	buf, req := BuildHisTransBuffer()
 
 	conn, err := net.Dial("tcp", HOST)
 	chk(err)
@@ -124,5 +124,12 @@ func _TestHisTransReq(t *testing.T) {
 	buffer := make([]byte, 1024)
 	n, err := conn.Read(buffer)
 	chk(err)
-	fmt.Println(hex.EncodeToString(buffer[:n]))
+
+	parser := entity.NewHisTransParser(req, buffer[:n])
+	result := parser.Parse()
+	fmt.Println(hex.EncodeToString(parser.Data))
+
+	for _, t := range result {
+		fmt.Println(t)
+	}
 }

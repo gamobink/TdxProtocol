@@ -42,6 +42,11 @@ type InstantTransParser struct {
 	Req *InstantTransReq
 }
 
+type HisTransParser struct {
+	parser
+	Req *HisTransReq
+}
+
 func (this *parser) getCmd() uint16 {
 	return binary.LittleEndian.Uint16(this.RawBuffer[10:12])
 }
@@ -197,6 +202,45 @@ func (this *InstantTransParser) Parse() []*Transaction {
 
 func NewInstantTransParser(req *InstantTransReq, data []byte) *InstantTransParser {
 	return &InstantTransParser{
+		parser: parser{
+			RawBuffer: data,
+		},
+		Req: req,
+	}
+}
+
+func (this *HisTransParser) Parse() []*Transaction {
+	this.uncompressIf()
+
+	var result []*Transaction
+
+	count := this.getUint16()
+	this.skipByte(4)
+
+	first := true
+	var priceBase uint32
+
+	for ; count > 0; count-- {
+		trans := &Transaction{Date: this.Req.Date}
+		trans.Minute = this.getUint16()
+		if first {
+			priceBase = uint32(this.parseData())
+			trans.Price = priceBase
+			first = false
+		} else {
+			priceBase = uint32(this.parseData()) + priceBase
+			trans.Price = priceBase
+		}
+		trans.Volume = uint32(this.parseData())
+		trans.BS = this.getByte()
+		trans.Count = uint32(this.parseData())
+		result = append(result, trans)
+	}
+	return result
+}
+
+func NewHisTransParser(req *HisTransReq, data []byte) *HisTransParser {
+	return &HisTransParser{
 		parser: parser{
 			RawBuffer: data,
 		},
